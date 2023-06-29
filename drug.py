@@ -115,7 +115,7 @@ def main():
                 print(f"\033[2KConcentration: {concentration}", end='\r', flush=True)
             if tmaxed:
                 concentration = elimination_functions.get_concentration(args_list['dose'], timeSinceTmax, adjusted_halflife, precision)
-                print(f"\033[2KConcentration: {concentration}, {get_precision(timeSinceTmax, 0)}", end='\r', flush=True)
+                print(f"\033[2KConcentration: {concentration}", end='\r', flush=True)
         if useLinear:
             if tmaxed == False:
                 if timeSinceDose >= adjusted_tmax:
