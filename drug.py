@@ -14,6 +14,8 @@ parse.add_argument("--t12a", help="Absorption half-life of the chemical", type=f
 parse.add_argument("--t12", help="Half-life of the chemical", type=float)
 parse.add_argument("--probability", action="store_true", help="Make results probability based")
 parse.add_argument("--linear", action="store_true", help="Linear absorption/elimination (based on elimination constant and linear absorption rate)")
+parse.add_argument("--time", help="Time of dose e.g. hour:minute")
+parse.add_argument("--elapse", help="Time since dose e.g. hour:minute")
 args = parse.parse_args()
 
 args_list = vars(args)
@@ -21,6 +23,25 @@ input_values = ["dose", "tmax", "t12a", "t12"]
 
 if args_list['probability'] and args_list['linear']:
     exit("Probability and linear cannot be active simultaneously")
+
+if args_list['time'] and args_list['elapse']:
+    exit("Time and elapse cannot be active simultaneously")
+
+def getDateStart(uiDate):
+    hour = uiDate[:uiDate.find(":")]
+    minute = uiDate[uiDate.find(":")+1:]
+    currentYear = datetime.now().year
+    currentMonth = datetime.now().month
+    currentDay = datetime.now().day
+    epoch = datetime(currentYear, currentMonth, currentDay, int(hour), int(minute)).timestamp()
+    return epoch
+
+def getElapseTime(uiElapse):
+    hours = uiElapse[:uiElapse.find(':')]
+    minutes = uiElapse[uiElapse.find(':')+1:]
+    timeElapse = ( float(hours) * 3600 ) + ( float(minutes) * 60 )
+    epoch = get_epoch() - timeElapse
+    return epoch
 
 def get_constant(half_life):
     constant = math.log(2) / half_life # get the constant absorption/elimination (ka/ke) rate | ln(2) / half-life
@@ -91,19 +112,26 @@ def main():
             if useDefault:
                 args_list[i] = float( input(f"{i.replace('t12a', 'Absorption half-life').replace('t12', 'Half-life')}: ") )
     startTime = get_epoch()
+    if args_list['time'] != None:
+        startTime = getDateStart(args_list["time"])
+    elif args_list['elapse'] != None:
+        startTime = getElapseTime(args_list['elapse'])
     adjusted_halflife = convert_to_seconds(args_list['t12'], args_list['unit'])
     adjusted_absorption_halflife = convert_to_seconds(args_list['t12a'], args_list['unit'])
     adjusted_tmax = convert_to_seconds(args_list['tmax'], args_list['unit'])
-    #useLinear = args_list['linear']
-    #useProbability = args_list['probability']
-    #useDefault = (useLinear == False and useProbability == False)
     scriptStartDate = f"{datetime.now().month}/{datetime.now().day} {datetime.now().hour}:{datetime.now().minute}:{datetime.now().second}"
     # ansi code for linux only
     print(f"\n\033[31mStarting script at {scriptStartDate}\033[0m\n\n", end='')
     while True:
         time.sleep(0.25)
         timeSinceDose = get_epoch() - startTime
-        timeSinceTmax = get_epoch() - tmax_epoch
+        #  timeSinceTmax = get_epoch() - tmax_epoch;    OLD
+        if args_list['time'] != None or args_list['elapse'] != None:
+            # timeSinceTmax = adjusted_tmax + startTime -- current value, commented out for debugging
+            tmax_epoch = startTime + adjusted_tmax
+            timeSinceTmax = get_epoch() - tmax_epoch
+        else:
+            timeSinceTmax = get_epoch() - tmax_epoch
         if useDefault:
             if tmaxed == False:
                 if timeSinceDose >= adjusted_tmax:
@@ -144,5 +172,4 @@ try:
 except KeyboardInterrupt:
     exit("\nTerminating script")
 except Exception as e:
-    exit("\n", e)
-
+    exit(f"\n{e}")
